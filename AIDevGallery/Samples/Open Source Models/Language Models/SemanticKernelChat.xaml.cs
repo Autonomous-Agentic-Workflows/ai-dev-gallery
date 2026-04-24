@@ -4,6 +4,7 @@
 using AIDevGallery.Models;
 using AIDevGallery.Samples.Attributes;
 using AIDevGallery.Samples.SharedCode;
+using AIDevGallery.Utils;
 using Microsoft.Extensions.AI;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
@@ -13,6 +14,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using System;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -42,6 +44,7 @@ internal sealed partial class SemanticKernelChat : BaseSamplePage
     private Kernel? _semanticKernel;
     private ChatHistory _chatHistory;
     private bool _modelReady;
+    private string _sampleId = string.Empty; // <exclude-line>
 
     private bool isImeActive = true;
 
@@ -60,6 +63,8 @@ internal sealed partial class SemanticKernelChat : BaseSamplePage
 
     protected override async Task LoadModelAsync(SampleNavigationParameters sampleParams)
     {
+        _sampleId = sampleParams.SampleId; // <exclude-line>
+        RestoreChatSession(); // <exclude-line>
         IChatClient? model = null;
         try
         {
@@ -94,10 +99,36 @@ internal sealed partial class SemanticKernelChat : BaseSamplePage
         InputBox.Focus(FocusState.Programmatic);
     }
 
+    private void RestoreChatSession()
+    {
+        var saved = App.AppData.LoadChatSession(_sampleId);
+        if (saved == null || saved.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var pm in saved)
+        {
+            var role = new ChatRole(pm.Role);
+            Messages.Add(new Message(pm.Content, pm.MsgDateTime, role));
+
+            // Rebuild ChatHistory (system message already added in constructor)
+            if (role == ChatRole.User)
+            {
+                _chatHistory.AddUserMessage(pm.Content);
+            }
+            else if (role == ChatRole.Assistant)
+            {
+                _chatHistory.AddAssistantMessage(pm.Content);
+            }
+        }
+    }
+
     // </exclude>
     private void CleanUp()
     {
         CancelResponse();
+        _ = App.AppData.SaveChatSessionAsync(_sampleId, Messages.Select(m => new PersistedMessage(m.Content, string.Empty, m.Role.Value, m.MsgDateTime))); // <exclude-line>
         _chatCompletionService = null;
         _semanticKernel = null;
     }

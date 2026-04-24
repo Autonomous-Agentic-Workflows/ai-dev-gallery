@@ -4,6 +4,7 @@
 using AIDevGallery.Models;
 using AIDevGallery.Samples.Attributes;
 using AIDevGallery.Samples.SharedCode;
+using AIDevGallery.Utils;
 using Microsoft.Extensions.AI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -39,6 +40,7 @@ internal sealed partial class Chat : BaseSamplePage
     public ObservableCollection<Message> Messages { get; } = [];
 
     private bool isImeActive = true;
+    private string _sampleId = string.Empty; // <exclude-line>
 
     private IChatClient? model;
 
@@ -58,6 +60,8 @@ internal sealed partial class Chat : BaseSamplePage
 
     protected override async Task LoadModelAsync(SampleNavigationParameters sampleParams)
     {
+        _sampleId = sampleParams.SampleId; // <exclude-line>
+        RestoreChatSession(); // <exclude-line>
         try
         {
             model = await sampleParams.GetIChatClientAsync();
@@ -78,10 +82,31 @@ internal sealed partial class Chat : BaseSamplePage
         UpdateClearButtonState();
     }
 
+    private void RestoreChatSession()
+    {
+        var saved = App.AppData.LoadChatSession(_sampleId);
+        if (saved == null || saved.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var pm in saved)
+        {
+            Messages.Add(new Message(pm.Content, pm.MsgDateTime, new ChatRole(pm.Role))
+            {
+                ThinkContent = pm.ThinkContent
+            });
+        }
+
+        UpdateRewriteButtonState();
+        UpdateClearButtonState();
+    }
+
     // </exclude>
     private void CleanUp()
     {
         CancelResponse();
+        _ = App.AppData.SaveChatSessionAsync(_sampleId, Messages.Select(m => new PersistedMessage(m.Content, m.ThinkContent, m.Role.Value, m.MsgDateTime))); // <exclude-line>
         model?.Dispose();
     }
 
@@ -368,6 +393,7 @@ internal sealed partial class Chat : BaseSamplePage
     private void ClearChat()
     {
         Messages.Clear();
+        _ = App.AppData.ClearChatSessionAsync(_sampleId); // <exclude-line>
         UpdateRewriteButtonState();
         UpdateClearButtonState();
         SendSampleInteractedEvent("ClearChat"); // <exclude-line>
