@@ -10,6 +10,7 @@ namespace AIDevGallery.Utils;
 [JsonSourceGenerationOptions(WriteIndented = true, AllowTrailingCommas = true)]
 [JsonSerializable(typeof(AppData))]
 [JsonSerializable(typeof(List<CachedModel>))]
+[JsonSerializable(typeof(List<PersistedMessage>))]
 internal partial class AppDataSourceGenerationContext : JsonSerializerContext
 {
 }
