@@ -45,7 +45,7 @@ internal partial class AppData : ObservableObject
 
     public WinMlSampleOptions WinMLSampleOptions { get; set; }
 
-    private Dictionary<string, Dictionary<string, string>>? SampleData { get; set; }
+    public Dictionary<string, Dictionary<string, string>>? SampleData { get; set; }
 
     public AppData()
     {
@@ -190,7 +190,6 @@ internal partial class AppData : ObservableObject
         await SaveAsync();
     }
 
-    // does not persist between sessions
     public async Task SetSampleDataAsync(string sampleName, string key, string data)
     {
         if (SampleData == null)
@@ -228,6 +227,35 @@ internal partial class AppData : ObservableObject
         }
 
         return null;
+    }
+
+    public async Task SaveChatSessionAsync(string sampleId, IEnumerable<PersistedMessage> messages)
+    {
+        var json = JsonSerializer.Serialize(messages.ToList(), AppDataSourceGenerationContext.Default.ListPersistedMessage);
+        await SetSampleDataAsync(sampleId, "chat-session", json);
+    }
+
+    public List<PersistedMessage>? LoadChatSession(string sampleId)
+    {
+        var json = GetSampleData(sampleId, "chat-session");
+        if (string.IsNullOrEmpty(json))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize(json, AppDataSourceGenerationContext.Default.ListPersistedMessage);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task ClearChatSessionAsync(string sampleId)
+    {
+        await SetSampleDataAsync(sampleId, "chat-session", string.Empty);
     }
 
     public bool TryGetUserAddedModelIds(ModelType type, out List<string>? modelIds)
@@ -272,3 +300,5 @@ internal class CustomParametersState
 internal record UsageHistory(string Id, HardwareAccelerator? HardwareAccelerator);
 
 internal record WinMlSampleOptions(ExecutionProviderDevicePolicy? Policy, string? EpName, bool CompileModel, string? DeviceType);
+
+internal record PersistedMessage(string Content, string ThinkContent, string Role, DateTime MsgDateTime);
